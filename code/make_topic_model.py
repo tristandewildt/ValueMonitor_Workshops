@@ -20,6 +20,7 @@ tagger=PerceptronTagger()
 
 
 def filter_stopwords_verbs(x, tags_to_select):
+    
     pos_tagged_tokens = tagger.tag(nltk.word_tokenize(x))
     remaining_text = [s for s in pos_tagged_tokens if any(ext in s[1] for ext in tags_to_select)]
     remaining_text_untolken = ' '.join([word for word, pos in remaining_text])
