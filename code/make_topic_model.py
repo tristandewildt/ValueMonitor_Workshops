@@ -304,11 +304,11 @@ def print_sample_documents_related_to_topic_with_keywords(df_with_topics, dict_a
     
     sample_documents(df_selected, random_number_documents_to_return, text_table)
     
-def print_sample_articles_topic(df_with_topics, dict_anchor_words, topics, selected_value, size_sample, show_extracts, show_full_text):
+def print_sample_articles_topic(df_with_topics, dict_anchor_words, topics, selected_value, size_sample, window, show_extracts, show_full_text):
     
     words_values = topics
 
-    window = 10
+    #window = 10
     
     list_values = list(dict_anchor_words.keys())
     
@@ -323,8 +323,10 @@ def print_sample_articles_topic(df_with_topics, dict_anchor_words, topics, selec
     
     for index, row in sampled_df.iterrows():
         print('\033[1m' + 'Article '+str(index) + '\033[0m')
-        print("Title: "+str(row['title']))
-        print("Dataset: "+str(row['dataset']))
+        if 'title' in sampled_df:
+            print("Title: "+str(row['title']))
+        if 'dataset' in sampled_df:
+            print("Dataset: "+str(row['dataset']))
         
         text_combined_tagged = row['text_tagged']
         text_combined_not_tagged = row['text']
@@ -345,7 +347,6 @@ def print_sample_articles_topic(df_with_topics, dict_anchor_words, topics, selec
                     finish = min(len(tokens), index+window+1)
                     lhs = " ".join( tokens[start:index] )
                     rhs = " ".join( tokens[index+1:finish] )
-                    #conc = "%s [%s] %s" % (lhs, tokens[index], rhs)
                     conc = "%s [%s] %s" % (" - "+str(lhs), '\033[1m' + str(red(tokens[index])) + '\033[0m', rhs)
                     print(conc)
                     print("")
