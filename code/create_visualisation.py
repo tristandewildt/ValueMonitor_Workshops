@@ -15,6 +15,8 @@ from datetime import datetime
 import dateutil.parser
 from dateutil.relativedelta import relativedelta
 from matplotlib.ticker import FormatStrFormatter
+from colorama import Fore, Back, Style
+
 
 
 def values_in_different_datasets(df_with_topics, dict_anchor_words):
@@ -388,6 +390,100 @@ def inspect_words_over_time(df_with_topics, topic_to_evaluate, list_words, resam
     fig.tight_layout() 
     plt.figure(figsize=(20,14), dpi= 400)
 
+    plt.rcParams["figure.figsize"] = [12,6]
+    plt.show()
+
+def compare_words_topics_in_runs (dict_all_df_with_topics, dict_all_topics, dict_anchor_words, selected_value, model_runs_to_show, resampling, smoothing, max_value_y):
+    
+    copy_dict_anchor_words = dict_anchor_words.copy()
+
+    combined_df = pd.DataFrame()
+    names_topic_models = []
+    dict_names_runs = {}
+
+    for topic_model in model_runs_to_show:       
+        copy_df_with_topics = dict_all_df_with_topics[topic_model]
+        df_with_topics_freq = copy_df_with_topics.set_index('date').resample(resampling).size().reset_index(name="count")
+        df_with_topics_freq = df_with_topics_freq.set_index('date')
+    
+        df_frequencies = copy_df_with_topics.set_index('date')
+        
+        df_frequencies = df_frequencies.resample(resampling).sum()
+           
+        list_values = list(copy_dict_anchor_words.keys())
+        selected_value_int = list_values.index(selected_value)
+        df_frequencies_2 = pd.DataFrame()
+        df_frequencies_2['topic_model_'+str(topic_model)] = df_frequencies[selected_value_int].div(df_with_topics_freq["count"], axis=0)
+        names_topic_models.append('topic_model_'+str(topic_model))
+        dict_names_runs[topic_model]='topic_model_'+str(topic_model)
+        combined_df = pd.concat([combined_df, df_frequencies_2], axis=1)
+        if topic_model == 0:
+            combined_df = pd.concat([combined_df, df_with_topics_freq], axis=1)
+        
+    combined_df.rename(columns = dict_names_runs, inplace = True)
+    
+    combined_df = combined_df.fillna(0)
+    #print(combined_df)
+        
+    x = pd.Series(combined_df.index.values)
+    x = x.dt.to_pydatetime().tolist()
+    
+    x = [ z - relativedelta(years=1) for z in x]
+             
+    combined_df[names_topic_models] = combined_df[names_topic_models] * 100
+    
+    sigma = (np.log(len(x)) - 1.25) * 1.2 * smoothing
+     
+    n_colors = len(names_topic_models)
+    colours = cm.tab20(np.linspace(0, 1, n_colors)) 
+    
+    list_words_first_model = dict_all_topics[0][selected_value_int]
+    counter = 0
+    
+    for topic_model in model_runs_to_show:
+        dict_topics = dict_all_topics[counter]
+        #dict_topics = eval(dict_topics)
+        #exec('dict_topics = topics_'+str(counter))
+        list_words = dict_topics[selected_value_int]
+        words_in_color = list_words
+        if counter > 0:
+            for y in range(len(list_words)):
+                if list_words[y] not in list_words_first_model:
+                    list_words[y] = Fore.GREEN + str(list_words[y]) + Fore.RESET      
+            words_in_color = "["+str(', '.join(str("'"+str(item)+"'") for item in list_words))+"]"
+        print("\033[1m" + "Topic_model_" + str(topic_model)+"\033[0m" +": "+str(words_in_color))
+        counter = counter + 1
+    
+    #print(dict_labels)
+    #print(dict_labels[1])
+        
+    counter = 0
+    fig, ax1 = plt.subplots()
+    for topic_model in names_topic_models:
+            ysmoothed = gaussian_filter1d(combined_df[topic_model].tolist(), sigma=sigma)
+            ax1.plot(x, ysmoothed, label=str(topic_model), linewidth=2, color = colours[counter])
+            counter = counter + 1
+        
+    ax1.set_xlabel('Time', fontsize=12, fontweight="bold")
+    ax1.set_ylabel('Percentage of documents addressing each value \n per unit of time (lines)  (%)', fontsize=12, fontweight="bold")
+    ax1.legend()
+        
+    timestamp_0 = x[0]
+    timestamp_1 = x[1]
+        
+    
+    #width = (time.mktime(timestamp_1.timetuple()) - time.mktime(timestamp_0.timetuple())) / 86400 *.8
+    width = (timestamp_1 - timestamp_0).total_seconds() / 86400 * 0.8
+           
+    ax2 = ax1.twinx()
+    ax2.bar(x, combined_df["count"].tolist(), width=width, color='gainsboro')
+    ax2.set_ylabel('Number of documents in the dataset \n per unit of time (bars)', fontsize=12, fontweight="bold")
+        
+    ax1.set_zorder(ax2.get_zorder()+1)
+    ax1.patch.set_visible(False)
+        
+    ax1.set_ylim([0,max_value_y])
+    
     plt.rcParams["figure.figsize"] = [12,6]
     plt.show()
 
