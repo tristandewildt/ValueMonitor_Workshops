@@ -66,7 +66,16 @@ def top_topics_on_values(df_with_topics, selected_value, dict_anchor_words, topi
 def top_topics_on_values_over_time(df_with_topics, selected_value, selected_dataset, dict_anchor_words, topics_weights, top_topics_to_show, topics_to_remove_int, smoothing, max_value_y, resampling):
   
     df_to_evaluate = df_with_topics
-    df_to_evaluate = df_to_evaluate.set_index('date')  
+    
+    dict_values = {}
+    counter = 0
+    for value, words in dict_anchor_words.items():
+        dict_values[value]=counter
+        counter = counter + 1
+        
+    df_to_evaluate = df_to_evaluate.loc[(df_to_evaluate[dict_values[selected_value]] == 1)]
+
+    df_to_evaluate = df_to_evaluate.set_index('date')
     
     df_with_topics_freq = df_to_evaluate.resample(resampling).size().reset_index(name="count")
     df_with_topics_freq = df_with_topics_freq.set_index('date')
