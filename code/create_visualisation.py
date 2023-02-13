@@ -175,7 +175,6 @@ def values_in_different_datasets(df_with_topics, dict_anchor_words):
         df_sum = df_with_topics_sum_dataset.sum(numeric_only=True)
         series_perc[dataset] = df_sum.apply(lambda x: x / len(df_with_topics_sum_dataset) * 100)
     
-    #print(series_perc)
     
     df_perc = {k:v.to_frame() for k, v in series_perc.items()}
     df_perc_all = df_perc[list_datasets[0]]
@@ -270,16 +269,13 @@ def values_in_different_groups(df_with_topics, dict_anchor_words, selected_datas
 
     df_with_topics_field = df_with_topics.loc[df_with_topics['dataset'] == selected_dataset]
         
-
     list_datasets = df_with_topics['dataset'].unique().tolist()
-
         
-    df_sum_dataset_short = df_with_topics_field.sum(numeric_only=True)
-               
-
-        
+    df_sum_dataset_short = df_with_topics_field.sum(numeric_only=True)               
+    
     series_perc_dataset_short = df_sum_dataset_short.apply(lambda x: x / len(df_with_topics_field) * 100)
-    series_perc_dataset_short = series_perc_dataset_short[:len(dict_anchor_words)]
+    list_values_int = list(range(len(dict_anchor_words)))
+    series_perc_dataset_short = series_perc_dataset_short[list_values_int]
 
     counter = 0
     for value, keywords in dict_anchor_words.items():
