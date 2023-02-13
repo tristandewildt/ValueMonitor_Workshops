@@ -21,7 +21,7 @@ from matplotlib.ticker import FormatStrFormatter
 from nltk.sentiment import SentimentIntensityAnalyzer
 
 
-def top_topics(df_with_topics, selected_value, dict_anchor_words, topics_weights, topics_to_remove_int, top_topics_to_show):
+def top_topics_on_values(df_with_topics, selected_value, dict_anchor_words, topics_weights, topics_to_remove_int, top_topics_to_show):
     
     dict_values = {}
     counter = 0
@@ -63,7 +63,7 @@ def top_topics(df_with_topics, selected_value, dict_anchor_words, topics_weights
 
 
 
-def plot_top_topics_over_time(df_with_topics, selected_value, selected_dataset, dict_anchor_words, topics_weights, top_topics_to_show, topics_to_remove_int, smoothing, max_value_y, resampling):
+def top_topics_on_values_over_time(df_with_topics, selected_value, selected_dataset, dict_anchor_words, topics_weights, top_topics_to_show, topics_to_remove_int, smoothing, max_value_y, resampling):
   
     df_to_evaluate = df_with_topics
     df_to_evaluate = df_to_evaluate.set_index('date')  
