@@ -22,7 +22,149 @@ from umap import UMAP
 from typing import List
 from sklearn.preprocessing import MinMaxScaler
 
+def top_topics_on_values(df_with_topics, selected_value, dict_anchor_words, topics_weights, topics_to_remove_int, top_topics_to_show):
+    
+    dict_values = {}
+    counter = 0
+    for value, words in dict_anchor_words.items():
+        dict_values[value]=counter
+        counter = counter + 1
+    
+    df_to_evaluate = df_with_topics
+    df_to_evaluate = df_to_evaluate.loc[(df_to_evaluate[dict_values[selected_value]] == 1)]
+    
+    list_columns_on_topics = list(range(len(dict_anchor_words), len(topics_weights), 1))
+    list_empty_topics = []
+    for topic, words in topics_weights.items():
+        if len(words)==0:
+            topic_int = topic[topic.find('#')+len('#'):topic.rfind(')')]
+            list_empty_topics.append(int(topic_int))
+    list_columns_on_topics = [x for x in list_columns_on_topics if x not in list_empty_topics]
+    list_columns_on_topics = [x for x in list_columns_on_topics if x not in topics_to_remove_int]
+    df_to_evaluate = df_to_evaluate[list_columns_on_topics]
+    
+    count_df_to_evaluate = df_to_evaluate.sum()
+    count_df_to_evaluate = count_df_to_evaluate.sort_values(ascending=False)
+    count_df_to_evaluate = count_df_to_evaluate[:top_topics_to_show]
+    
+    dict_dataset_short = count_df_to_evaluate.to_dict()
+    dict_dataset_short_names = {}
+    for topic_int, count in dict_dataset_short.items():
+        words_weights = topics_weights["Topic #"+str(topic_int)+"#"]
+        list_words_weights = "Topic "+str(topic_int)+": "+", ".join(list(words_weights.keys())[:5])
+        dict_dataset_short_names[list_words_weights]=count
+    
+    plt.barh(list(dict_dataset_short_names.keys()), list(dict_dataset_short_names.values()))
+    plt.gca().invert_yaxis()
+        
+    plt.rcParams.update({'font.size': 16})
+    plt.title('Top topics associated with the value '+str(selected_value))
+    plt.xlabel('counts')
+    plt.show()
 
+
+
+def top_topics_on_values_over_time(df_with_topics, selected_value, dict_anchor_words, topics_weights, top_topics_to_show, topics_to_remove_int, smoothing, max_value_y, resampling):
+  
+    df_to_evaluate = df_with_topics
+    
+    dict_values = {}
+    counter = 0
+    for value, words in dict_anchor_words.items():
+        dict_values[value]=counter
+        counter = counter + 1
+        
+    df_to_evaluate = df_to_evaluate.loc[(df_to_evaluate[dict_values[selected_value]] == 1)]
+
+    df_to_evaluate = df_to_evaluate.set_index('date')
+    
+    df_with_topics_freq = df_to_evaluate.resample(resampling).size().reset_index(name="count")
+    df_with_topics_freq = df_with_topics_freq.set_index('date')
+        
+    df_to_evaluate = df_to_evaluate.fillna("")
+
+    number_of_topics = len(topics_weights)
+    list_int_topics = list(range(number_of_topics))
+    list_int_values = list(range(len(dict_anchor_words)))
+    list_int_topics = [topic for topic in list_int_topics if topic not in list_int_values]
+    df_to_evaluate = df_to_evaluate[list_int_topics]
+
+    topic_names = {}
+    empty_topics = []
+    for index_topic in range(len(list_int_topics)):
+        topic_int = index_topic + len(dict_anchor_words)
+        words_weights = topics_weights["Topic #"+str(topic_int)+"#"]
+        if len(words_weights) > 0:
+            list_words_weights = "Topic "+str(topic_int)+": "+", ".join(list(words_weights.keys())[:5])
+            topic_names[topic_int]=list_words_weights
+        else: 
+            empty_topics.append(topic_int)
+
+    df_to_evaluate = df_to_evaluate.rename(columns=topic_names)
+    topics_to_remove_str = empty_topics
+    for i in topics_to_remove_int:
+        topics_to_remove_str.append(topic_names[i])
+    df_to_evaluate = df_to_evaluate.drop(columns=topics_to_remove_str)
+
+    df_to_evaluate = df_to_evaluate.resample(resampling).sum()
+    count_df_to_evaluate = df_to_evaluate.sum()
+
+    count_df_to_evaluate = count_df_to_evaluate.sort_values(ascending=False)
+    count_df_to_evaluate = count_df_to_evaluate[:top_topics_to_show]
+
+    percentage_df_to_evaluate = count_df_to_evaluate.divide(count_df_to_evaluate.sum(), fill_value=0)
+    percentage_df_to_evaluate = percentage_df_to_evaluate * 100
+    list_topics_above_threshold = list(count_df_to_evaluate.index.values)
+
+    df_to_evaluate = df_to_evaluate[list_topics_above_threshold]
+      
+    df_to_evaluate = df_to_evaluate.div(df_with_topics_freq["count"], axis=0)
+    df_to_evaluate = df_to_evaluate.fillna(0)
+        
+    x = pd.Series(df_to_evaluate.index.values)
+    x = x.dt.to_pydatetime().tolist()
+      
+    x = [ z - relativedelta(years=1) for z in x]
+        
+    df_to_evaluate = df_to_evaluate * 100
+
+      
+    sigma = (np.log(len(x)) - 1.25) * 1.2 * smoothing
+          
+    counter = 0
+    fig, ax1 = plt.subplots()
+    for word in df_to_evaluate:
+        ysmoothed = gaussian_filter1d(df_to_evaluate[word].tolist(), sigma=sigma)
+        ax1.plot(x, ysmoothed, label=word, linewidth=2)
+        counter = counter + 1
+          
+    ax1.set_xlabel('Time', fontsize=12, fontweight="bold")
+    ax1.set_ylabel('Percentage of articles', fontsize=12, fontweight="bold")
+    ax1.legend(prop={'size': 10})
+      
+    timestamp_0 = x[0]
+    timestamp_1 = x[1]
+      
+
+    #width = (time.mktime(timestamp_1.timetuple()) - time.mktime(timestamp_0.timetuple())) / 86400 *.8
+    width = (timestamp_1 - timestamp_0).total_seconds() / 86400 * 0.8
+      
+    df_to_evaluate["count"]=df_with_topics_freq["count"]
+      
+    ax2 = ax1.twinx()
+    ax2.bar(x, df_to_evaluate["count"].tolist(), width=width, color='gainsboro')
+    ax2.set_ylabel('Number of documents in the selected dataset (bars)', fontsize=12, fontweight="bold")
+      
+    ax1.set_zorder(ax2.get_zorder()+1)
+    ax1.patch.set_visible(False)
+
+          
+    ax1.set_ylim([0,max_value_y])
+    ax1.legend(prop={'size': 10})
+      
+    plt.rcParams["figure.figsize"] = [12,6]
+    plt.title("Top "+str(top_topics_to_show)+" topics discussed in relation to the value "+str(selected_value), fontsize=14, fontweight="bold")
+    plt.show()
 
 
 def values_in_different_datasets(df_with_topics, dict_anchor_words):
